@@ -4,11 +4,12 @@ import taichi as ti
 class MassSpring:
     def __init__(self, type, dt):
         self.type = type
+        self.dt = dt
         self.n = 64
         self.m = 1
         self.spring_stiffness = 1000
         self.damping = 0.5
-        self.dt = dt
+        self.epsilon = 1e-5
         self.gravity = ti.Vector([0.0, -9.8, 0.0])
         self.x = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.v = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
@@ -18,6 +19,7 @@ class MassSpring:
         self.b = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.r = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.p = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
+        self.Ap = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
 
         self.init_field()
 
@@ -44,16 +46,18 @@ class MassSpring:
         return f
 
     @ti.kernel
-    def compute_Ab(self):
+    def compute_b(self):
+        for i in range(self.n):
+            self.b[i] = self.v[i] + self.dt * (self.compute_F(i) / self.m)
+
+    @ti.kernel
+    def compute_A(self):
         I = ti.Matrix([
             [1.0, 0.0, 0.0],
             [0.0, 1.0, 0.0],
             [0.0, 0.0, 1.0]
         ])
         for i, j in self.A:
-            # compute b
-            if j == 0:
-                self.b[i] = self.v[i] + self.dt * (self.compute_F(i) / self.m)
             # compute Jacobi
             J = ti.Matrix.zero(ti.f32, 3, 3)
             for k in range(self.n):
@@ -75,6 +79,14 @@ class MassSpring:
             self.A[i, j] -= self.dt ** 2 * J / self.m
 
     @ti.kernel
+    def compute_rp(self):
+        for i in range(self.n):
+            self.r[i] = self.b[i]
+            for j in range(self.n):
+                self.r[i] -= self.A[i, j] @ self.v[j]
+            self.p[i] = self.r[i]
+
+    @ti.kernel
     def update(self):
         for i in range(self.n):
             if i == 0 or i == 7:
@@ -90,13 +102,37 @@ class MassSpring:
             self.x[i] += self.v[i] * self.dt
 
     @ti.kernel
-    def jacobi_iteration(self):
+    def jacobi_iteration(self) -> ti.f32:
+        e = 0.0
         for i in range(self.n):
             r = self.b[i]
             for j in range(self.n):
-                if i != j:
-                    r -= self.A[i, j] @ self.v[j]
-            self.v[i] = self.A[i, i].inverse() @ r
+                r -= self.A[i, j] @ self.v[j]
+            self.v[i] += self.A[i, i].inverse() @ r
+            e += r.norm()
+        return e
+
+    @ti.kernel
+    def cg_iteration(self) -> ti.f32:
+        rr = 0.0
+        pAp = 0.0
+        rr1 = 0.0
+        for i in range(self.n):
+            rr += self.r[i].dot(self.r[i])
+            self.Ap[i] = [0, 0, 0]
+            for j in range(self.n):
+                self.Ap[i] += self.A[i, j] @ self.p[j]
+            pAp += self.p[i].dot(self.Ap[i])
+        alpha = rr / pAp
+        for i in range(self.n):
+            self.v[i] += alpha * self.p[i]
+            self.r[i] -= alpha * self.Ap[i]
+        for i in range(self.n):
+            rr1 += self.r[i].dot(self.r[i])
+        beta = rr1 / rr
+        for i in range(self.n):
+            self.p[i] = self.r[i] + beta * self.p[i]
+        return rr1
 
     def substep(self):
         # explicit
@@ -104,12 +140,18 @@ class MassSpring:
             self.explicit()
         # implicit
         else:
-            self.compute_Ab()
-            for iter in range(10):
-                # Jacobi
-                if self.type == 2:
-                    self.jacobi_iteration()
-                # Conjugate Gradient
-                else:
-                    pass
+            self.compute_A()
+            self.compute_b()
+            
+            # Jacobi
+            if self.type == 2:
+                for iter in range(10):
+                    if self.jacobi_iteration() < self.epsilon:
+                        break
+            # Conjugate Gradient
+            else:
+                self.compute_rp()
+                for iter in range(10):
+                    if self.cg_iteration() < self.epsilon:
+                        break
             self.update()

@@ -40,7 +40,7 @@ if __name__ == "__main__":
     dt = 1e-2
     substeps = int(1 / 60 // dt)
 
-    model = MassSpring(2, dt)
+    model = MassSpring(3, dt)
 
     t = 0
 
