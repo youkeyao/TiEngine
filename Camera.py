@@ -3,8 +3,8 @@ import taichi as ti
 @ti.data_oriented
 class Camera:
     def __init__(self, fov, aspect, n, f):
-        self.position = ti.Vector([8.0, 8.0, 10.0])
-        self.forward = (self.position - ti.Vector([0, 4, 0])).normalized()
+        self.position = ti.Vector([6.0, 7.0, 8.0])
+        self.forward = (self.position - ti.Vector([0, 2, 0])).normalized()
 
         self.fov = fov
         self.aspect = aspect

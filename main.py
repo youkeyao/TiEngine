@@ -2,18 +2,10 @@ import taichi as ti
 import numpy as np
 from Camera import Camera
 from MassSpring import MassSpring
+from SPHFluid import SPHFluid
 
 WIDTH = 1024
 HEIGHT = 720
-
-def process_input():
-    global sys
-    global solver
-    for e in gui.get_events(gui.PRESS):
-        if e.key == '1':
-            solver = MassSpring()
-        elif e.key == '2':
-            sys = "None"
 
 # 3d pos -> ndc
 def T(pos):
@@ -35,26 +27,28 @@ if __name__ == "__main__":
     camera = Camera(45 * np.pi / 180, WIDTH / HEIGHT, 0.1, 100.0)
 
     gui = ti.GUI('TiEngine', res=(WIDTH, HEIGHT), background_color=0xdddddd)
-    sys = "MassSpring"
 
-    dt = 1e-2
-    substeps = int(1 / 60 // dt)
-
-    model = MassSpring(3, dt)
+    configs = {
+        "title": "SPHFluid",
+        "model": SPHFluid,
+        "type": 1,
+        "dt": 1e-3,
+        "t": 3
+    }
+    substeps = int(1 / 60 // configs["dt"])
+    model = configs["model"](configs["type"], configs["dt"])
 
     t = 0
 
     while gui.running:
-        if t > 8:
+        if t > configs["t"]:
             t = 0
             model.init_field()
 
-        process_input()
-
         for i in range(substeps):
             model.substep()
-            t += dt
+            t += configs["dt"]
 
         gui.circles(T(model.x.to_numpy()), radius=5, color=0xffaa77)
-        gui.text(content=sys, pos=(0, 1), font_size=25, color=0x000000)
+        gui.text(content=configs["title"], pos=(0, 1), font_size=25, color=0x000000)
         gui.show()

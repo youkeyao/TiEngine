@@ -3,10 +3,10 @@ import taichi as ti
 @ti.data_oriented
 class MassSpring:
     def __init__(self, type, dt):
-        self.type = type
+        self.type = type # 1: explicit, 2: Jacobi, 3: Conjugate Gradient
         self.dt = dt
         self.n = 64
-        self.m = 1
+        self.m = 1.0
         self.spring_stiffness = 1000
         self.damping = 0.5
         self.epsilon = 1e-5
@@ -26,7 +26,7 @@ class MassSpring:
     @ti.kernel
     def init_field(self):
         for i, j in ti.ndrange(8, 8):
-            self.x[i + j * 8] = [i - 4, 7, -j]
+            self.x[i + j * 8] = [i - 4, 6, -j]
         for i, j in ti.ndrange(self.n, self.n):
             d = (self.x[i] - self.x[j]).norm()
             if i != j and d < ti.sqrt(2) + 0.01:
@@ -87,7 +87,7 @@ class MassSpring:
             self.p[i] = self.r[i]
 
     @ti.kernel
-    def update(self):
+    def update_xv(self):
         for i in range(self.n):
             if i == 0 or i == 7:
                 self.v[i] = [0, 0, 0]
@@ -154,4 +154,4 @@ class MassSpring:
                 for iter in range(10):
                     if self.cg_iteration() < self.epsilon:
                         break
-            self.update()
+            self.update_xv()
