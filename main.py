@@ -29,19 +29,21 @@ if __name__ == "__main__":
     gui = ti.GUI('TiEngine', res=(WIDTH, HEIGHT), background_color=0xdddddd)
 
     configs = {
-        "title": "SPHFluid",
-        "model": SPHFluid,
-        "type": 1,
+        "title": "MassSpring",
+        "model": MassSpring,
+        "type": 2,
         "dt": 1e-3,
-        "t": 3
+        "t": 8
     }
-    substeps = int(1 / 60 // configs["dt"])
+    substeps = int(1 / 40 // configs["dt"])
     model = configs["model"](configs["type"], configs["dt"])
 
     t = 0
+    frame = 0
 
     while gui.running:
         if t > configs["t"]:
+            frame = 0
             t = 0
             model.init_field()
 
@@ -51,4 +53,5 @@ if __name__ == "__main__":
 
         gui.circles(T(model.x.to_numpy()), radius=5, color=0xffaa77)
         gui.text(content=configs["title"], pos=(0, 1), font_size=25, color=0x000000)
-        gui.show()
+        gui.show(f"frame/{frame:04d}.png")
+        frame += 1
