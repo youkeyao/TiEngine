@@ -1,4 +1,5 @@
 import taichi as ti
+import numpy as np
 
 @ti.data_oriented
 class Camera:
@@ -11,8 +12,8 @@ class Camera:
         self.n = n
         self.f = f
 
-        self.view_matrix = ti.Matrix([[0] * 5 for _ in range(5)], ti.i32)
-        self.projection_matrix = ti.Matrix([[0] * 5 for _ in range(5)], ti.i32)
+        self.view_matrix = ti.Matrix([[0] * 5 for _ in range(5)], ti.f32)
+        self.projection_matrix = ti.Matrix([[0] * 5 for _ in range(5)], ti.f32)
 
         self.initialize()
 
@@ -39,3 +40,18 @@ class Camera:
         self.projection_matrix[2, 2] = (self.n + self.f) / (self.n - self.f)
         self.projection_matrix[2, 3] = 2 * self.n * self.f / (self.n - self.f)
         self.projection_matrix[3, 2] = -1
+
+    # 3d pos -> ndc
+    def T(self, pos):
+        M = self.projection_matrix @ self.view_matrix
+        x, y, z = pos[:, 0], pos[:, 1], pos[:, 2]
+        ndc_x = M[0, 0] * x + M[0, 1] * y + M[0, 2] * z + M[0, 3]
+        ndc_y = M[1, 0] * x + M[1, 1] * y + M[1, 2] * z + M[1, 3]
+        ndc_w = M[3, 0] * x + M[3, 1] * y + M[3, 2] * z + M[3, 3]
+        ndc_x /= ndc_w
+        ndc_y /= ndc_w
+        ndc_x += 1
+        ndc_x /= 2
+        ndc_y += 1
+        ndc_y /= 2
+        return np.array([ndc_x, ndc_y]).swapaxes(0, 1)

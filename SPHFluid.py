@@ -14,7 +14,7 @@ class SPHFluid:
         self.density0 = 1000
         self.kernel_radius = 0.2
         self.grid_size = 0.1
-        self.bound = ti.Vector([2, 6, 2])
+        self.bound = ti.Vector([2, 6, 2]) # -bound.x < x < bound.x, 0 < y < bound.y, -bound.z < z < bound.z
         self.grid_shape = ti.Vector([int(2 * self.bound.x / self.grid_size) + 1, int(self.bound.y / self.grid_size) + 1, int(2 * self.bound.z / self.grid_size) + 1])
         self.gridn = self.grid_shape.x * self.grid_shape.y * self.grid_shape.z
         self.gravity = ti.Vector([0.0, -9.8, 0.0])
@@ -41,10 +41,9 @@ class SPHFluid:
     def init_field(self):
         for i, j, k in ti.ndrange(20, 20, 20):
             self.x[i + j * 20 + k * 20 * 20] = [(i - 9.5) * 0.1, j * 0.1 + 2, (k - 9.5) * 0.1]
-        for i in range(self.n):
-            self.v[i] = [0, 0, 0]
-            self.density[i] = 0.0
-            self.pressure[i] = 0.0
+        self.v.fill([0, 0, 0])
+        self.density.fill(0.0)
+        self.pressure.fill(0.0)
         self.pci_factor[None] = self.compute_pci_factor()
 
     @ti.func
@@ -196,7 +195,7 @@ class SPHFluid:
             self.compute_xv(i)
         
     @ti.kernel
-    def pci_predict(self):
+    def pci_init(self):
         for i in range(self.n):
             self.pressure[i] = 0
             self.density[i] = 0
@@ -255,7 +254,7 @@ class SPHFluid:
             self.wcsph()
         elif self.type == 2:
             self.neighbour_init()
-            self.pci_predict()
+            self.pci_init()
             for iter in range(50):
                 if self.pci_iteration() < self.epsilon:
                     break
