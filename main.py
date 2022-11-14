@@ -13,14 +13,13 @@ if __name__ == "__main__":
     camera = Camera(45 * np.pi / 180, WIDTH / HEIGHT, 0.1, 100.0)
 
     gui = ti.GUI('TiEngine', res=(WIDTH, HEIGHT), background_color=0xdddddd)
-    
 
     configs = {
         "title": "EulerianFluid",
         "model": EulerianFluid,
-        "type": 1,
+        "type": 2,
         "dt": 1e-2,
-        "t": 12
+        "t": 8
     }
     substeps = int(1 / 20 // configs["dt"])
     model = configs["model"](configs["type"], configs["dt"])

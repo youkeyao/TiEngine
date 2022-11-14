@@ -41,6 +41,14 @@ def semi_lagrange(vf, qf, pos, dt):
     return trilerp(qf, coord[0], coord[1], coord[2])
 
 @ti.func
+def bfecc(vf, qf, pos, dt):
+    coord = back_trace_rk2(vf, pos, dt)
+    x1 = trilerp(qf, coord[0], coord[1], coord[2])
+    coord2 = back_trace_rk2(vf, coord, -dt)
+    x2 = trilerp(qf, coord2[0], coord2[1], coord[2])
+    return x1 + 0.5 * (x2 - sample(qf, pos[0], pos[1], pos[2]))
+
+@ti.func
 def divergence(vf, v_div):
     for i, j, k in vf:
         vl = sample(vf, i - 1, j, k)[0]
