@@ -12,19 +12,18 @@ if __name__ == "__main__":
     ti.init(arch=ti.cpu)
     camera = Camera(45 * np.pi / 180, WIDTH / HEIGHT, 0.1, 100.0)
 
-    # gui = ti.GUI('TiEngine', res=(WIDTH, HEIGHT), background_color=0xdddddd)
+    gui = ti.GUI('TiEngine', res=(WIDTH, HEIGHT), background_color=0xdddddd)
     
 
     configs = {
-        "title": "WCSPH",
+        "title": "EulerianFluid",
         "model": EulerianFluid,
         "type": 1,
         "dt": 1e-2,
-        "t": 8
+        "t": 12
     }
     substeps = int(1 / 20 // configs["dt"])
     model = configs["model"](configs["type"], configs["dt"])
-    gui = ti.GUI('TiEngine', res=(model.grid_shape[0], model.grid_shape[1]), background_color=0xdddddd)
 
     t = 0
     frame = 0
@@ -39,8 +38,7 @@ if __name__ == "__main__":
             model.substep()
             t += configs["dt"]
 
-        # gui.circles(camera.T(model.x.to_numpy()), radius=5, color=0xffaa77)
-        gui.set_image(model._img)
+        gui.circles(camera.T(model.x.to_numpy()), radius=5, color=0xffaa77)
         gui.text(content=configs["title"], pos=(0, 1), font_size=25, color=0x000000)
         gui.show()
         # gui.show(f"frame/{frame:04d}.png")

@@ -284,4 +284,6 @@ class LinearSolver:
                     break
         # sparse solver
         elif self.type == self.sparse:
-            self.x.from_numpy(self.solver.solve(self.b))
+            x = self.solver.solve(self.b)
+            if self.solver.info():
+                self.x.from_numpy(x)
