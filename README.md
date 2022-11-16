@@ -1,12 +1,13 @@
-# TiEngine
+# TiSim
 
-Several physical simulation systems implememted by taichi.
+Several simple physical simulation systems implememted by taichi.
 
 - Mass-Spring
 - SPH Fluid
     - WCSPH
     - PCISPH
 - Eulerian Fluid
+- MPM Fluid
 
 ## Mass-Spring
 ```
@@ -55,3 +56,15 @@ configs = {
 }
 ```
 ![EulerianFluid](figs/eulerianfluid.gif)
+
+## MPM Fluid
+```
+configs = {
+    "title": "MPMFluid",
+    "model": MPMFluid,
+    "type": 3,
+    "dt": 1e-4,
+    "t": 8
+}
+```
+![MPMFluid](figs/mpmfluid.gif)

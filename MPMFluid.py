@@ -3,7 +3,7 @@ import taichi as ti
 @ti.data_oriented
 class MPMFluid:
     def __init__(self, type, dt):
-        self.type = type
+        self.type = type # 1: sticky, 2: slip, 3: seperate
         self.dt = dt
         self.liquid_n = 15 * 15 * 15
         self.solid_n = 15 * 15 * 15
@@ -15,6 +15,7 @@ class MPMFluid:
         self.vol = (self.grid_size * 0.5) ** 3
         self.m = self.vol * self.rho
         self.bound = ti.Vector([2, 4, 2])
+        self.bound_buf = 2
         self.grid_shape = [int(2 * self.bound.x / self.grid_size), int(self.bound.y / self.grid_size), int(2 * self.bound.z / self.grid_size)]
 
         self.x = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
@@ -31,17 +32,54 @@ class MPMFluid:
         for i, j, k in ti.ndrange(15, 15, 15):
             self.x[i + j * 15 + k * 15 * 15] = ti.Vector([i * 0.1 + 0.4, j * 0.1 + 2, k * 0.1 - 0.4])
         for i, j, k in ti.ndrange(15, 15, 15):
-            self.x[i + j * 15 + k * 15 * 15 + self.liquid_n] = ti.Vector([i * 0.1 - 0.4, j * 0.1 + 1, k * 0.1 + 0.4])
-        # for p in self.x:
-        #     if p < self.liquid_n:
-        #         self.x[p] = ti.Vector([ti.random() * 3.8 - 1.9, ti.random() * 0.4 + 0.01, ti.random() * 3.8 - 1.9])
-        #     else:
-        #         self.x[p] = ti.Vector([ti.random() * 0.5 - 0.25, ti.random() * 2 + 1.5, ti.random() * 0.5 - 0.25])
+            self.x[i + j * 15 + k * 15 * 15 + self.liquid_n] = ti.Vector([i * 0.1 - 0.4, j * 0.1 + 0.5, k * 0.1 + 0.4])
         self.v.fill(0)
         self.C.fill(0)
         self.F.fill(ti.Matrix([[1, 0, 0], [0, 1, 0], [0, 0, 1]]))
         self.grid_v.fill(0)
         self.grid_m.fill(0)
+
+    @ti.func
+    def BC(self, i, j, k):
+        if self.type == 1:
+            if i < self.bound_buf:
+                self.grid_v[i, j, k] = [0, 0, 0]
+            if i > self.grid_shape[0] - self.bound_buf:
+                self.grid_v[i, j, k] = [0, 0, 0]
+            if j < self.bound_buf:
+                self.grid_v[i, j, k] = [0, 0, 0]
+            if j > self.grid_shape[1] - self.bound_buf:
+                self.grid_v[i, j, k] = [0, 0, 0]
+            if k < self.bound_buf:
+                self.grid_v[i, j, k] = [0, 0, 0]
+            if k > self.grid_shape[2] - self.bound_buf:
+                self.grid_v[i, j, k] = [0, 0, 0]
+        elif self.type == 2:
+            if i < self.bound_buf:
+                self.grid_v[i, j, k][0] = 0
+            if i > self.grid_shape[0] - self.bound_buf:
+                self.grid_v[i, j, k][0] = 0
+            if j < self.bound_buf:
+                self.grid_v[i, j, k][1] = 0
+            if j > self.grid_shape[1] - self.bound_buf:
+                self.grid_v[i, j, k][1] = 0
+            if k < self.bound_buf:
+                self.grid_v[i, j, k][2] = 0
+            if k > self.grid_shape[2] - self.bound_buf:
+                self.grid_v[i, j, k][2] = 0
+        elif self.type == 3:
+            if i < self.bound_buf and self.grid_v[i, j, k][0] < 0:
+                self.grid_v[i, j, k][0] = 0
+            if i > self.grid_shape[0] - self.bound_buf and self.grid_v[i, j, k][0] > 0:
+                self.grid_v[i, j, k][0] = 0
+            if j < self.bound_buf and self.grid_v[i, j, k][1] < 0:
+                self.grid_v[i, j, k][1] = 0
+            if j > self.grid_shape[1] - self.bound_buf and self.grid_v[i, j, k][1] > 0:
+                self.grid_v[i, j, k][1] = 0
+            if k < self.bound_buf and self.grid_v[i, j, k][2] < 0:
+                self.grid_v[i, j, k][2] = 0
+            if k > self.grid_shape[2] - self.bound_buf and self.grid_v[i, j, k][2] > 0:
+                self.grid_v[i, j, k][2] = 0
 
     @ti.kernel
     def P2G(self):
@@ -81,18 +119,7 @@ class MPMFluid:
                 self.grid_v[i, j, k] = \
                     (1 / self.grid_m[i, j, k]) * self.grid_v[i, j, k]
                 self.grid_v[i, j, k][1] -= self.dt * 9.8
-                if i < 3 and self.grid_v[i, j, k][0] < 0:
-                    self.grid_v[i, j, k][0] = 0
-                if i > self.grid_shape[0] - 3 and self.grid_v[i, j, k][0] > 0:
-                    self.grid_v[i, j, k][0] = 0
-                if j < 3 and self.grid_v[i, j, k][1] < 0:
-                    self.grid_v[i, j, k][1] = 0
-                if j > self.grid_shape[1] - 3 and self.grid_v[i, j, k][1] > 0:
-                    self.grid_v[i, j, k][1] = 0
-                if k < 3 and self.grid_v[i, j, k][2] < 0:
-                    self.grid_v[i, j, k][2] = 0
-                if k > self.grid_shape[2] - 3 and self.grid_v[i, j, k][2] > 0:
-                    self.grid_v[i, j, k][2] = 0
+                self.BC(i, j, k)
 
     @ti.kernel
     def G2P(self):

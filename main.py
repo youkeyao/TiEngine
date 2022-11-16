@@ -18,8 +18,8 @@ if __name__ == "__main__":
     configs = {
         "title": "MPMFluid",
         "model": MPMFluid,
-        "type": 1,
-        "dt": 1e-3,
+        "type": 3,
+        "dt": 1e-4,
         "t": 8
     }
     substeps = int(1 / 40 // configs["dt"])
