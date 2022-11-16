@@ -4,6 +4,7 @@ from Camera import Camera
 from MassSpring import MassSpring
 from SPHFluid import SPHFluid
 from EulerianFluid import EulerianFluid
+from MPMFluid import MPMFluid
 
 WIDTH = 1024
 HEIGHT = 720
@@ -15,13 +16,13 @@ if __name__ == "__main__":
     gui = ti.GUI('TiEngine', res=(WIDTH, HEIGHT), background_color=0xdddddd)
 
     configs = {
-        "title": "EulerianFluid",
-        "model": EulerianFluid,
-        "type": 2,
-        "dt": 1e-2,
+        "title": "MPMFluid",
+        "model": MPMFluid,
+        "type": 1,
+        "dt": 1e-3,
         "t": 8
     }
-    substeps = int(1 / 20 // configs["dt"])
+    substeps = int(1 / 40 // configs["dt"])
     model = configs["model"](configs["type"], configs["dt"])
 
     t = 0

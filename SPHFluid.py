@@ -16,7 +16,7 @@ class SPHFluid:
         self.grid_size = 0.1
         self.bound = ti.Vector([2, 6, 2]) # -bound.x < x < bound.x, 0 < y < bound.y, -bound.z < z < bound.z
         self.grid_shape = ti.Vector([int(2 * self.bound.x / self.grid_size) + 1, int(self.bound.y / self.grid_size) + 1, int(2 * self.bound.z / self.grid_size) + 1])
-        self.gridn = self.grid_shape.x * self.grid_shape.y * self.grid_shape.z
+        self.n_grid = self.grid_shape.x * self.grid_shape.y * self.grid_shape.z
         self.gravity = ti.Vector([0.0, -9.8, 0.0])
         # basic
         self.x = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
@@ -25,8 +25,8 @@ class SPHFluid:
         self.pressure = ti.field(dtype=ti.f32, shape=self.n)
         self.F = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         # neighbour search
-        self.grid = ti.field(dtype=ti.i32, shape=(self.gridn, self.n))
-        self.gridCount = ti.field(dtype=ti.i32, shape=self.gridn)
+        self.grid = ti.field(dtype=ti.i32, shape=(self.n_grid, self.n))
+        self.gridCount = ti.field(dtype=ti.i32, shape=self.n_grid)
         self.neighbour = ti.field(dtype=ti.i32, shape=(self.n, self.n))
         self.neighbourCount = ti.field(dtype=ti.i32, shape=self.n)
         # pci
@@ -48,7 +48,7 @@ class SPHFluid:
 
     @ti.func
     def cubic_kernel(self, r_norm):
-        res = ti.cast(0.0, ti.f32)
+        res = 0.0
         h = self.kernel_radius / 2
         k = 1 / np.pi
         k /= h ** 3
@@ -85,7 +85,7 @@ class SPHFluid:
 
     @ti.kernel
     def neighbour_init(self):
-        for i in range(self.gridn):
+        for i in range(self.n_grid):
             self.gridCount[i] = 0
         for i in range(self.n):
             self.neighbourCount[i] = 0
