@@ -2,6 +2,7 @@ import taichi as ti
 import numpy as np
 from Camera import Camera
 from MassSpring import MassSpring
+from FEMSolid import FEMSolid
 from SPHFluid import SPHFluid
 from EulerianFluid import EulerianFluid
 from MPMFluid import MPMFluid
@@ -16,13 +17,13 @@ if __name__ == "__main__":
     gui = ti.GUI('TiEngine', res=(WIDTH, HEIGHT), background_color=0xdddddd)
 
     configs = {
-        "title": "MPMFluid",
-        "model": MPMFluid,
-        "type": 3,
-        "dt": 1e-4,
-        "t": 8
+        "title": "FEMSolid",
+        "model": FEMSolid,
+        "type": 2,
+        "dt": 1e-3,
+        "t": 10
     }
-    substeps = int(1 / 40 // configs["dt"])
+    substeps = int(1 / 20 // configs["dt"])
     model = configs["model"](configs["type"], configs["dt"])
 
     t = 0

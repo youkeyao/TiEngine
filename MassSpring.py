@@ -35,7 +35,7 @@ class MassSpring:
         self.v.fill([0, 0, 0])
 
     @ti.func
-    def compute_F(self, i):
+    def compute_f(self, i):
         f = self.m * self.gravity - self.v[i] * self.damping
         for j in range(self.n):
             if self.l[i, j] != 0:
@@ -46,15 +46,11 @@ class MassSpring:
     @ti.kernel
     def compute_b(self):
         for i in range(self.n):
-            self.solver.b[i] = self.v[i] + self.dt * (self.compute_F(i) / self.m)
+            self.solver.b[i] = self.v[i] + self.dt * (self.compute_f(i) / self.m)
 
     @ti.kernel
     def compute_A(self):
-        I = ti.Matrix([
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 0.0, 1.0]
-        ])
+        I = ti.Matrix.identity(ti.f32, 3)
         for i, j in ti.ndrange(self.n, self.n):
             # compute Jacobi
             J = ti.Matrix.zero(ti.f32, 3, 3)
@@ -73,7 +69,7 @@ class MassSpring:
             if i == j:
                 self.solver.A[i, j] = I
             else:
-                self.solver.A[i, j] = ti.Matrix.zero(ti.f32, 3, 3)
+                self.solver.A[i, j].fill(0)
             self.solver.A[i, j] -= self.dt ** 2 * J / self.m
 
     @ti.kernel
@@ -81,15 +77,15 @@ class MassSpring:
         for i in range(self.n):
             if i == 0 or i == 7:
                 self.v[i] = [0, 0, 0]
-            self.x[i] += self.v[i] * self.dt
+            self.x[i] += self.dt * self.v[i]
 
     @ti.kernel
     def explicit(self):
         for i in range(self.n):
-            self.v[i] += self.dt * (self.compute_F(i) / self.m)
+            self.v[i] += self.dt * (self.compute_f(i) / self.m)
             if i == 0 or i == 7:
                 self.v[i] = [0, 0, 0]
-            self.x[i] += self.v[i] * self.dt
+            self.x[i] += self.dt * self.v[i]
 
     def substep(self):
         # explicit
@@ -99,6 +95,5 @@ class MassSpring:
         else:
             self.compute_A()
             self.compute_b()
-            
             self.solver.solve()
             self.update_xv()

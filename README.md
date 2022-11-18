@@ -3,6 +3,7 @@
 Several simple physical simulation systems implememted by taichi.
 
 - Mass-Spring
+- FEM Solid
 - SPH Fluid
     - WCSPH
     - PCISPH
@@ -20,6 +21,18 @@ configs = {
 }
 ```
 ![Mass-Spring](figs/massspring.gif)
+
+## FEM Solid
+```
+configs = {
+    "title": "FEMSolid",
+    "model": FEMSolid,
+    "type": 2,
+    "dt": 1e-3,
+    "t": 10
+}
+```
+![FEMSolid](figs/femsolid.gif)
 
 ## WCSPH
 ```

@@ -49,30 +49,6 @@ def bfecc(vf, qf, pos, dt):
     return x1 + 0.5 * (x2 - sample(qf, pos[0], pos[1], pos[2]))
 
 @ti.func
-def divergence(vf, v_div):
-    for i, j, k in vf:
-        vl = sample(vf, i - 1, j, k)[0]
-        vr = sample(vf, i + 1, j, k)[0]
-        vb = sample(vf, i, j - 1, k)[1]
-        vt = sample(vf, i, j + 1, k)[1]
-        vh = sample(vf, i, j, k - 1)[2]
-        vq = sample(vf, i, j, k + 1)[2]
-        vc = sample(vf, i, j, k)
-        if i == 0:
-            vl = -vc[0]
-        if i == vf.shape[0] - 1:
-            vr = -vc[0]
-        if j == 0:
-            vb = -vc[1]
-        if j == vf.shape[1] - 1:
-            vt = -vc[1]
-        if k == 0:
-            vh = -vc[2]
-        if k == vf.shape[2] - 1:
-            vq = -vc[2]
-        v_div[i, j, k] = (vr - vl + vt - vb + vq - vh) * 0.5
-
-@ti.func
 def restrict_matrix(i, j, dim):
     v = 0.0
     dim1 = dim // 2

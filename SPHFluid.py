@@ -23,7 +23,7 @@ class SPHFluid:
         self.v = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.density = ti.field(dtype=ti.f32, shape=self.n)
         self.pressure = ti.field(dtype=ti.f32, shape=self.n)
-        self.F = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
+        self.f = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         # neighbour search
         self.grid = ti.field(dtype=ti.i32, shape=(self.n_grid, self.n))
         self.gridCount = ti.field(dtype=ti.i32, shape=self.n_grid)
@@ -137,7 +137,7 @@ class SPHFluid:
 
     @ti.func
     def compute_xv(self, i):
-        self.v[i] += self.dt * self.F[i] / self.m
+        self.v[i] += self.dt * self.f[i] / self.m
         if self.x[i].x + self.v[i].x * self.dt < -self.bound.x:
             self.x[i].x = -self.bound.x + 0.01 * ti.random()
             self.v[i].x = 0
@@ -156,7 +156,7 @@ class SPHFluid:
         if self.x[i].z + self.v[i].z * self.dt > self.bound.z:
             self.x[i].z = self.bound.z - 0.01 * ti.random()
             self.v[i].z = 0
-        self.x[i] += self.v[i] * self.dt
+        self.x[i] += self.dt * self.v[i]
 
     @ti.func
     def compute_pci_factor(self):
@@ -183,15 +183,15 @@ class SPHFluid:
             self.density[i] = ti.max(self.density[i], self.density0)
             self.pressure[i] = self.bulk_modulus * (ti.pow(self.density[i] / self.density0, 7) - 1.0)
         for i in range(self.n):
-            self.F[i] = self.m * self.gravity
+            self.f[i] = self.m * self.gravity
             for k in range(self.neighbourCount[i]):
                 j = self.neighbour[i, k]
                 # Surface Tension
-                self.F[i] += self.compute_surface_tension(i, j)
+                self.f[i] += self.compute_surface_tension(i, j)
                 # Viscosoty Force
-                self.F[i] += self.compute_viscosoty_force(i, j)
+                self.f[i] += self.compute_viscosoty_force(i, j)
                 # Pressure Force
-                self.F[i] += self.compute_pressure_force(i, j)
+                self.f[i] += self.compute_pressure_force(i, j)
             self.compute_xv(i)
         
     @ti.kernel
@@ -204,13 +204,13 @@ class SPHFluid:
                 self.density[i] += self.compute_density(i, j)
             self.density[i] = ti.max(self.density[i], self.density0)
         for i in range(self.n):
-            self.F[i] = self.m * self.gravity
+            self.f[i] = self.m * self.gravity
             for k in range(self.neighbourCount[i]):
                 j = self.neighbour[i, k]
                 # Surface Tension
-                self.F[i] += self.compute_surface_tension(i, j)
+                self.f[i] += self.compute_surface_tension(i, j)
                 # Viscosoty Force
-                self.F[i] += self.compute_viscosoty_force(i, j)
+                self.f[i] += self.compute_viscosoty_force(i, j)
 
     @ti.kernel
     def pci_iteration(self) -> ti.f32:
@@ -219,12 +219,12 @@ class SPHFluid:
         for i in range(self.n):
             self.v_star[i] = self.v[i]
             self.x_star[i] = self.x[i]
-            F_origin = self.F[i]
+            F_origin = self.f[i]
             for k in range(self.neighbourCount[i]):
                 j = self.neighbour[i, k]
-                self.F[i] += self.compute_pressure_force(i, j)
+                self.f[i] += self.compute_pressure_force(i, j)
             self.compute_xv(i)
-            self.F[i] = F_origin
+            self.f[i] = F_origin
         for i in range(self.n):
             # density_star
             self.density[i] = 0
@@ -245,7 +245,7 @@ class SPHFluid:
         for i in range(self.n):
             for k in range(self.neighbourCount[i]):
                 j = self.neighbour[i, k]
-                self.F[i] += self.compute_pressure_force(i, j)
+                self.f[i] += self.compute_pressure_force(i, j)
             self.compute_xv(i)
 
     def substep(self):

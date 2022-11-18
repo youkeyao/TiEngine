@@ -17,6 +17,7 @@ class MPMFluid:
         self.bound = ti.Vector([2, 4, 2])
         self.bound_buf = 2
         self.grid_shape = [int(2 * self.bound.x / self.grid_size), int(self.bound.y / self.grid_size), int(2 * self.bound.z / self.grid_size)]
+        self.gravity = ti.Vector([0.0, -9.8, 0.0])
 
         self.x = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.v = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
@@ -116,9 +117,7 @@ class MPMFluid:
     def compute_grid(self):
         for i, j, k in self.grid_m:
             if self.grid_m[i, j, k] > 0:
-                self.grid_v[i, j, k] = \
-                    (1 / self.grid_m[i, j, k]) * self.grid_v[i, j, k]
-                self.grid_v[i, j, k][1] -= self.dt * 9.8
+                self.grid_v[i, j, k] = self.grid_v[i, j, k] / self.grid_m[i, j, k] + self.dt * self.gravity
                 self.BC(i, j, k)
 
     @ti.kernel

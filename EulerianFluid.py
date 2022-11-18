@@ -1,5 +1,5 @@
 import taichi as ti
-from utils import semi_lagrange, bfecc, divergence, sample, LinearSolver
+from utils import semi_lagrange, bfecc, sample, LinearSolver
 
 # projection: taichi sparse matrix solver
 @ti.data_oriented
@@ -7,6 +7,7 @@ class EulerianFluid:
     def __init__(self, type, dt):
         self.type = type # 1: semi-lagrange, 2: BFECC
         self.dt = dt
+        self.dx = 1.0
         self.grid_size = 0.04
         self.bound = ti.Vector([0.6, 4, 0.6])
         self.grid_shape = [int(2 * self.bound.x / self.grid_size), int(self.bound.y / self.grid_size), int(2 * self.bound.z / self.grid_size)]
@@ -53,7 +54,27 @@ class EulerianFluid:
 
     @ti.kernel
     def v_divergence(self):
-        divergence(self.v, self.v_div)
+        for i, j, k in self.v:
+            vl = sample(self.v, i - 1, j, k)[0]
+            vr = sample(self.v, i + 1, j, k)[0]
+            vb = sample(self.v, i, j - 1, k)[1]
+            vt = sample(self.v, i, j + 1, k)[1]
+            vh = sample(self.v, i, j, k - 1)[2]
+            vq = sample(self.v, i, j, k + 1)[2]
+            vc = sample(self.v, i, j, k)
+            if i == 0:
+                vl = -vc[0]
+            if i == self.v.shape[0] - 1:
+                vr = -vc[0]
+            if j == 0:
+                vb = -vc[1]
+            if j == self.v.shape[1] - 1:
+                vt = -vc[1]
+            if k == 0:
+                vh = -vc[2]
+            if k == self.v.shape[2] - 1:
+                vq = -vc[2]
+            self.v_div[i, j, k] = (vr - vl + vt - vb + vq - vh) / self.dx / 2
 
     @ti.kernel
     def compute_b(self):
@@ -90,7 +111,7 @@ class EulerianFluid:
             ph = self.pressure[i + j * self.grid_shape[0] + kmin * self.grid_shape[0] * self.grid_shape[1]]
             pq = self.pressure[imin + j * self.grid_shape[0] + kmax * self.grid_shape[0] * self.grid_shape[1]]
             v = sample(self.v, i, j, k)
-            self.v[i, j, k] = v - 0.5 * ti.Vector([pr - pl, pt - pb, pq - ph])
+            self.v[i, j, k] = v - 0.5 / self.dx * ti.Vector([pr - pl, pt - pb, pq - ph])
 
     @ti.kernel
     def update_x(self):
