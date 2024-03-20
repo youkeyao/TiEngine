@@ -7,18 +7,19 @@ from cases.SPHFluid import SPHFluidSolver
 from cases.EulerianFluid import EulerianFluidSolver
 from cases.MPMFluid import MPMFluidSolver
 from cases.PDSolid import PDSolidSolver
+from cases.CPDIPC import CPDIPCSolver
 
 WIDTH = 1024
 HEIGHT = 720
 
 if __name__ == "__main__":
-    ti.init(arch=ti.cpu)
+    ti.init(arch=ti.gpu)
     camera = Camera(45 * np.pi / 180, WIDTH / HEIGHT, 0.1, 100.0)
 
     gui = ti.GUI('TiEngine', res=(WIDTH, HEIGHT), background_color=0xdddddd)
 
     configs = {
-        "solver": PDSolidSolver,
+        "solver": CPDIPCSolver,
         "type": 2,
         "dt": 1e-2,
         "t": 10
