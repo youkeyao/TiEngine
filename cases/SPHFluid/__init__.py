@@ -2,7 +2,8 @@ import taichi as ti
 import numpy as np
 
 @ti.data_oriented
-class SPHFluid:
+class SPHFluidSolver:
+    name = "SPHFluid"
     def __init__(self, type, dt):
         self.type = type # 1: WCSPH, 2: PCISPH
         self.dt = dt
@@ -35,6 +36,9 @@ class SPHFluid:
         self.v_star = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.pci_factor = ti.field(dtype=ti.f32, shape=())
 
+        self.reset()
+
+    def reset(self):
         self.init_field()
 
     @ti.kernel
@@ -259,3 +263,5 @@ class SPHFluid:
                 if self.pci_iteration() < self.epsilon:
                     break
             self.pci_update()
+        else:
+            print("Invalid type!")

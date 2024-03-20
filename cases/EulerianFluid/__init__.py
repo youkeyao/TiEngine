@@ -3,7 +3,8 @@ from utils import semi_lagrange, bfecc, sample, LinearSolver
 
 # projection: taichi sparse matrix solver
 @ti.data_oriented
-class EulerianFluid:
+class EulerianFluidSolver:
+    name = "EulerianFluid"
     def __init__(self, type, dt):
         self.type = type # 1: semi-lagrange, 2: BFECC
         self.dt = dt
@@ -12,7 +13,7 @@ class EulerianFluid:
         self.bound = ti.Vector([0.6, 4, 0.6])
         self.grid_shape = [int(2 * self.bound.x / self.grid_size), int(self.bound.y / self.grid_size), int(2 * self.bound.z / self.grid_size)]
         self.n = self.grid_shape[0] * self.grid_shape[1] * self.grid_shape[2]
-        self.episilon = 0.3
+        self.density_threshold = 0.3
 
         self.x = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.v = ti.Vector.field(3, dtype=ti.f32, shape=self.grid_shape)
@@ -26,8 +27,10 @@ class EulerianFluid:
         self.compute_A(self.solver.A)
         self.solver.build_sparse()
 
+        self.reset()
+
+    def reset(self):
         self.init_field()
-        self._img = ti.Vector.field(3, dtype=ti.f32, shape=(self.grid_shape[0], self.grid_shape[1]))
 
     @ti.kernel
     def init_field(self):
@@ -48,6 +51,8 @@ class EulerianFluid:
             elif self.type == 2:
                 self.v_new[i, j, k] = bfecc(self.v, self.v, pos, self.dt)
                 self.density_new[i, j, k] = bfecc(self.v, self.density, pos, self.dt)
+            else:
+                print("Invalid type!")
         for i, j, k in self.v:
             self.v[i, j, k] = self.v_new[i, j, k]
             self.density[i, j, k] = self.density_new[i, j, k]
@@ -116,7 +121,7 @@ class EulerianFluid:
     @ti.kernel
     def update_x(self):
         for i, j, k in self.density:
-            if self.density[i, j, k] > self.episilon:
+            if self.density[i, j, k] > self.density_threshold:
                 self.x[i + j * self.grid_shape[0] + k * self.grid_shape[0] * self.grid_shape[1]] = [
                     i * self.grid_size - self.bound.x,
                     j * self.grid_size,
@@ -137,11 +142,6 @@ class EulerianFluid:
         for i, j, k in ti.ndrange((a1, b1), (0, 3), (c1, d1)):
             self.v[i, j, k] = [0, 50, 0]
 
-    @ti.kernel
-    def to_image(self):
-        for i, j in ti.ndrange((0, self.grid_shape[0]), (0, self.grid_shape[1])):
-            self._img[i, j] = self.density[i, j, self.grid_shape[0] // 2] * ti.Vector([1, 0.8, 0.8])
-
     def substep(self):
         self.advection()
         self.v_divergence()
@@ -151,4 +151,3 @@ class EulerianFluid:
         self.solver.solve()
         self.update_v()
         self.update_x()
-        self.to_image()

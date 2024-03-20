@@ -1,5 +1,6 @@
 import taichi as ti
-from utils import LinearSolver
+import numpy as np
+from utils import LinearSolver, Scene
 
 @ti.func
 def ssvd(F):
@@ -15,22 +16,27 @@ def ssvd(F):
     return U, sig, V
 
 @ti.data_oriented
-class FEMSolid:
+class FEMSolidSolver:
+    name = "FEMSolid"
     def __init__(self, type, dt):
         self.type = type # 1: explicit, 2: Jacobi, 3: Conjugate Gradient, 4: MGPCG
         self.dt = dt
-        self.n = 5 * 5 * 5
+
+        self.scene = Scene()
+        self.scene.add_cube([0.5, 0.5, 0.5], [-1, 1, -1])
+
+        self.n = self.scene.n_verts
+        self.n_elements = self.scene.n_elements
         E, nu = 1e5, 0.0
         self.mu, self.la = E / (2 * (1 + nu)), E * nu / ((1 + nu) * (1 - 2 * nu))
-        self.density = 1000.0
-        self.gravity = ti.Vector([0.0, -9.8, 0.0])
-        self.elements = ti.Vector.field(4, dtype=ti.i32, shape=64 * 5)
+        self.elements = ti.Vector.field(4, dtype=ti.i32, shape=self.n_elements)
         self.m = ti.field(dtype=ti.f32, shape=self.n)
         self.x = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.v = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
+        self.fe = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
         self.f = ti.Vector.field(3, dtype=ti.f32, shape=self.n)
-        self.F_B = ti.Matrix.field(3, 3, dtype=ti.f32, shape=64 * 5)
-        self.F_W = ti.field(dtype=ti.f32, shape=64 * 5)
+        self.F_B = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.n_elements)
+        self.F_W = ti.field(dtype=ti.f32, shape=self.n_elements)
 
         if type == 2:
             self.solver = LinearSolver(LinearSolver.jacobi, self.v, self.n)
@@ -38,34 +44,34 @@ class FEMSolid:
             self.solver = LinearSolver(LinearSolver.cg, self.v, self.n)
         elif type == 4:
             self.solver = LinearSolver(LinearSolver.mgpcg, self.v, self.n)
+        else:
+            print("Invalid type!")
 
+        self.reset()
+
+    def reset(self):
+        self.x.from_numpy(self.scene.x.astype(np.float32))
+        self.elements.from_numpy(self.scene.elements.astype(np.int32))
+        self.fe.from_numpy(self.scene.fe.astype(np.float32))
+        self.m.from_numpy(self.scene.rho.astype(np.float32))
         self.init_field()
 
     @ti.kernel
     def init_field(self):
-        for I in ti.grouped(ti.ndrange(4, 4, 4)):
-            e = ((I.x * 4 + I.y) * 4 + I.z) * 5
-            for i, j in ti.static(enumerate([0, 3, 5, 6])):
-                self.set_element(e + i, I, (j, j ^ 1, j ^ 2, j ^ 4))
-            self.set_element(e + 4, I, (1, 2, 4, 7))
-        for I in ti.grouped(ti.ndrange(5, 5, 5)):
-            id = (I.x * 5 + I.y) * 5 + I.z
-            self.x[id] = I * 0.5 + ti.Vector([-1, 1, -1])
         self.v.fill(0)
-        self.f.fill(0)
-        self.m.fill(0)
         for e in self.elements:
             D = self.D(e)
             self.F_B[e] = D.inverse()
             self.F_W[e] = ti.abs(D.determinant()) / 6
             for i in ti.static(range(4)):
-                self.m[self.elements[e][i]] += self.F_W[e] / 4 * self.density
-
-    @ti.func
-    def set_element(self, e, I, verts):
-        for i in ti.static(range(4)):
-            t = I + (([verts[i] >> k for k in range(3)] ^ I) & 1)
-            self.elements[e][i] = (t.x * 5 + t.y) * 5 + t.z
+                self.v[self.elements[e][i]][0] += self.F_W[e] / 4
+        for i in self.m:
+            if self.v[i][0] == 0:
+                self.v[i][0] = 1
+            self.m[i] = self.v[i][0] * self.m[i]
+        for f in self.fe:
+            self.fe[f] = self.fe[f] * self.m[f]
+        self.v.fill(0)
 
     @ti.func
     def D(self, e):
@@ -74,7 +80,7 @@ class FEMSolid:
     @ti.kernel
     def compute_f(self):
         for i in self.f:
-            self.f[i] = self.gravity * self.m[i]
+            self.f[i] = self.fe[i]
         for e in self.elements:
             F = self.D(e) @ self.F_B[e]
             P = ti.Matrix.zero(ti.f32, 3, 3)

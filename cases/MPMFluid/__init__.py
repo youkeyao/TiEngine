@@ -1,7 +1,8 @@
 import taichi as ti
 
 @ti.data_oriented
-class MPMFluid:
+class MPMFluidSolver:
+    name = "MPMFluid"
     def __init__(self, type, dt):
         self.type = type # 1: sticky, 2: slip, 3: seperate
         self.dt = dt
@@ -26,6 +27,9 @@ class MPMFluid:
         self.grid_v = ti.Vector.field(3, dtype=float, shape=self.grid_shape)
         self.grid_m = ti.field(dtype=float, shape=self.grid_shape)
 
+        self.reset()
+
+    def reset(self):
         self.init_field()
 
     @ti.kernel
@@ -81,6 +85,8 @@ class MPMFluid:
                 self.grid_v[i, j, k][2] = 0
             if k > self.grid_shape[2] - self.bound_buf and self.grid_v[i, j, k][2] > 0:
                 self.grid_v[i, j, k][2] = 0
+        else:
+            print("Invalid type!")
 
     @ti.kernel
     def P2G(self):

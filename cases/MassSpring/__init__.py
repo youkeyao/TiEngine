@@ -2,7 +2,8 @@ import taichi as ti
 from utils import LinearSolver
 
 @ti.data_oriented
-class MassSpring:
+class MassSpringSolver:
+    name = "MassSpring"
     def __init__(self, type, dt):
         self.type = type # 1: explicit, 2: Jacobi, 3: Conjugate Gradient
         self.dt = dt
@@ -19,7 +20,12 @@ class MassSpring:
             self.solver = LinearSolver(LinearSolver.jacobi, self.v, self.n)
         elif type == 3:
             self.solver = LinearSolver(LinearSolver.cg, self.v, self.n)
+        else:
+            print("Invalid type!")
 
+        self.reset()
+
+    def reset(self):
         self.init_field()
 
     @ti.kernel
