@@ -82,9 +82,9 @@ class EulerianFluidSolver:
             self.v_div[i, j, k] = (vr - vl + vt - vb + vq - vh) / self.dx / 2
 
     @ti.kernel
-    def compute_b(self):
+    def compute_b(self, b: ti.types.ndarray()):
         for i, j, k in ti.ndrange(self.grid_shape[0], self.grid_shape[1], self.grid_shape[2]):
-            self.solver.b[i + j * self.grid_shape[0] + k * self.grid_shape[0] * self.grid_shape[1]] = -self.v_div[i, j, k]
+            b[i + j * self.grid_shape[0] + k * self.grid_shape[0] * self.grid_shape[1]] = -self.v_div[i, j, k]
 
     @ti.kernel
     def compute_A(self, A: ti.types.sparse_matrix_builder()):
@@ -114,7 +114,7 @@ class EulerianFluidSolver:
             pb = self.pressure[i + jmin * self.grid_shape[0] + k * self.grid_shape[0] * self.grid_shape[1]]
             pt = self.pressure[i + jmax * self.grid_shape[0] + k * self.grid_shape[0] * self.grid_shape[1]]
             ph = self.pressure[i + j * self.grid_shape[0] + kmin * self.grid_shape[0] * self.grid_shape[1]]
-            pq = self.pressure[imin + j * self.grid_shape[0] + kmax * self.grid_shape[0] * self.grid_shape[1]]
+            pq = self.pressure[i + j * self.grid_shape[0] + kmax * self.grid_shape[0] * self.grid_shape[1]]
             v = sample(self.v, i, j, k)
             self.v[i, j, k] = v - 0.5 / self.dx * ti.Vector([pr - pl, pt - pb, pq - ph])
 
@@ -147,7 +147,7 @@ class EulerianFluidSolver:
         self.v_divergence()
         self.source()
         # projection
-        self.compute_b()
+        self.compute_b(self.solver.b)
         self.solver.solve()
         self.update_v()
         self.update_x()

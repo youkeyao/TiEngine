@@ -2,15 +2,30 @@ import taichi as ti
 import numpy as np
 
 def read_msh(filename):
-    f = open(filename, 'r')
-    lines = f.readlines()
-    nodes = lines[lines.index('$Nodes\n') + 3:lines.index('$EndNodes\n')]
-    mesh_elements = lines[lines.index('$Elements\n') + 3:lines.index('$EndElements\n')]
-    surfaces = lines[lines.index('$Surface\n') + 2:lines.index('$EndSurface\n')]
-    x = np.array(list(map(lambda x: list(map(float, x[:-1].split(' ')[1:])), nodes)))
-    elements = np.array(list(map(lambda x: list(map(int, x[:-1].split(' ')[1:])), mesh_elements))) - 1
-    faces = np.array(list(map(lambda x: list(map(int, x[:-1].split(' '))), surfaces))) - 1
-    return x, elements, faces
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        nodes = lines[lines.index('$Nodes\n')+3 : lines.index('$EndNodes\n')]
+        mesh_elements = lines[lines.index('$Elements\n')+3 : lines.index('$EndElements\n')]
+        surfaces = lines[lines.index('$Surface\n')+2 : lines.index('$EndSurface\n')]
+        x = np.array(list(map(lambda x: list(map(float, x[:-1].split(' ')[1:])), nodes)))
+        elements = np.array(list(map(lambda x: list(map(int, x[:-1].split(' ')[1:])), mesh_elements))) - 1
+        faces = np.array(list(map(lambda x: list(map(int, x[:-1].split(' '))), surfaces))) - 1
+        return x, elements, faces
+
+def read_obj(filename):
+    vertices = []
+    normals = []
+    faces = []
+    with open(filename, 'r', encoding='utf-8') as f:
+        for line in f.readlines():
+            if line.startswith('v '):
+                vertices.append([float(i) for i in line.split(' ')[1:]])
+            elif line.startswith('vn '):
+                normals.append([float(i) for i in line.split(' ')[1:]])
+            elif line.startswith('f '):
+                faces_ = list(map(lambda x: list(map(lambda x: -1 if x=='' else int(x)-1, x.split('/'))), line.split(' ')[1:]))
+                faces.append(faces_)
+    return np.array(vertices), np.array(normals), np.array(faces)
 
 def count_edges(faces):
     edges = []

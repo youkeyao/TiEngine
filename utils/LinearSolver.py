@@ -18,7 +18,7 @@ class LinearSolver:
         self.x = x
         if type == self.sparse:
             self.A = ti.linalg.SparseMatrixBuilder(n, n, max_num_triplets=n * 7)
-            self.b = ti.field(dtype=ti.f32, shape=self.n)
+            self.b = ti.ndarray(dtype=ti.f32, shape=self.n)
             self.solver = ti.linalg.SparseSolver(solver_type="LLT")
         elif type == self.cg:
             self.A = ti.Matrix.field(dim, dim, dtype=ti.f32, shape=(self.n, self.n))
@@ -185,5 +185,5 @@ class LinearSolver:
         # sparse solver
         elif self.type == self.sparse:
             x = self.solver.solve(self.b)
-            if self.solver.info():
-                self.x.from_numpy(x)
+            # if self.solver.info():
+            self.x.from_numpy(x.to_numpy())
